@@ -2,8 +2,32 @@
 
 * Conferir a versão do Node.js 22 ou superior: node -v
 * Conferir se está instalado o npx: npx -v
+* Conferir se está instalado o GIT: git -v
 
 ## Como rodar o projeto baixado
+
+Baixar os arquivos do GitHub.
+```
+git clone <repositorio_url> .
+```
+```
+git clone https://github.com/celkecursos/lista-aula-curso-react19-typescript.git .
+```
+
+Instalar todas as dependências indicadas pelo package.json.
+```
+npm install
+```
+
+Rodar o projeto React.
+```
+npm run dev
+```
+
+Acessar no navegador a URL.
+```
+http://localhost:3000
+```
 
 ## Sequencia para criar o projeto
 
