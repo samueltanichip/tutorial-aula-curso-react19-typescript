@@ -1,3 +1,5 @@
+Código-fonte das aulas sobre [React](https://www.youtube.com/watch?v=R0bgEq8tT_A&list=PLmY5AEiqDWwA95rq9NnDTvKnnF_D7_Ax0&index=1).<br>
+
 ## Requisitos
 
 * Conferir a versão do Node.js 22 ou superior: node -v
