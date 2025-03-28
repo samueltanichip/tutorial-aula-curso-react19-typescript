@@ -7,7 +7,6 @@ pipeline {
 
     environment {
         PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.PATH}"
-        APP_PORT = '3000'
         NODE_ENV = 'production'
         CI = 'true'
     }
@@ -18,10 +17,7 @@ pipeline {
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
-                    extensions: [
-                        [$class: 'CleanBeforeCheckout'],
-                        [$class: 'LocalBranch', localBranch: 'main']
-                    ],
+                    extensions: [[$class: 'CleanBeforeCheckout']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
                         credentialsId: 'github-credentials'
@@ -30,24 +26,13 @@ pipeline {
             }
         }
 
-        stage('Setup Environment') {
-            steps {
-                script {
-                    bat '''
-                        @echo off
-                        echo System PATH: %PATH%
-                        where cmd
-                        where node
-                        where npm
-                    '''
-                }
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'npm install'
+                    // Instala dependências essenciais primeiro
+                    bat 'npm install tailwindcss postcss autoprefixer'
+                    // Instala todas as dependências
+                    bat 'npm ci --prefer-offline'
                 }
             }
         }
@@ -55,22 +40,24 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
+                    // Gera os arquivos de configuração se não existirem
+                    bat 'npx tailwindcss init -p || echo "Tailwind config already exists"'
+                    // Executa o build
                     bat 'npm run build'
                 }
             }
         }
 
         stage('Deploy Application') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 script {
                     bat '''
                         @echo off
-                        echo Parando processos na porta %APP_PORT%...
-                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%APP_PORT%') do (
-                            taskkill /F /PID %%a
-                        )
-                        echo Iniciando aplicação...
-                        start "ReactApp" /B npm run start
+                        echo Iniciando aplicação Next.js...
+                        start "NextApp" /B npm run start
                     '''
                 }
             }
@@ -79,7 +66,8 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'build/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: '**/.next/**/*', allowEmptyArchive: true
+            junit '**/junit.xml' 
             cleanWs()
         }
     }
