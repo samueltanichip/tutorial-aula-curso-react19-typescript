@@ -9,6 +9,7 @@ pipeline {
         PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.APPDATA}\\npm;${env.PATH}"
         NODE_ENV = 'production'
         CI = 'true'
+        npm_config_cache = "${env.WORKSPACE}\\.npm"
     }
 
     stages {
@@ -20,7 +21,7 @@ pipeline {
                     extensions: [[$class: 'CleanBeforeCheckout']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
-                        credentialsId: 'ssh_key' // Use o ID correto das suas credenciais
+                        credentialsId: 'ssh_key'
                     ]]
                 ])
             }
@@ -29,8 +30,16 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    bat 'node --version'
-                    bat 'npm --version'
+                    bat '''
+                        @echo off
+                        echo Verificando ambiente Windows...
+                        where cmd
+                        where node
+                        where npm
+                        where npx
+                        echo Configurando npm...
+                        npm config set cache "${WORKSPACE}\\.npm" --global
+                    '''
                 }
             }
         }
@@ -38,49 +47,47 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'npm install -g npm@latest'
-                    bat 'npm install --save-dev tailwindcss postcss autoprefixer'
-                    bat 'npm ci --prefer-offline'
-                }
-            }
-        }
-
-        stage('Configure Tailwind') {
-            steps {
-                script {
                     bat '''
-                        if not exist postcss.config.js (
-                            npx tailwindcss init -p
-                        ) else (
-                            echo "Config files already exist"
-                        )
+                        @echo off
+                        echo Verificando versões...
+                        node -v
+                        npm -v
+                        
+                        echo Limpando cache npm...
+                        npm cache clean --force
+                        
+                        echo Instalando dependências essenciais...
+                        npm install next@latest react react-dom --save-exact
+                        npm install tailwindcss postcss autoprefixer --save-dev
+                        
+                        echo Instalando todas as dependências...
+                        npm install --no-audit --legacy-peer-deps
+                        
+                        echo Configurando TailwindCSS...
+                        npx tailwindcss init -p
+                        
+                        echo Verificando instalações...
+                        npm list --depth=0
                     '''
                 }
             }
         }
-
+        
         stage('Build Application') {
-            steps {
-                script {
-                    bat 'npm run build'
-                }
-            }
-        }
-
-        stage('Deploy') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 script {
                     bat '''
                         @echo off
-                        echo Parando processos existentes na porta %APP_PORT%...
-                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000') do (
-                            taskkill /F /PID %%a
+                        echo Executando build com npx...
+                        npx next build
+                        
+                        echo Verificando saída do build...
+                        if exist .next (
+                            echo Build gerado com sucesso
+                        ) else (
+                            echo Falha no build - pasta .next não encontrada
+                            exit 1
                         )
-                        echo Iniciando aplicação...
-                        start "NextApp" /B npm run start
                     '''
                 }
             }
@@ -93,7 +100,7 @@ pipeline {
             cleanWs()
         }
         failure {
-            echo 'Build falhou. Verifique os logs.'
+            echo 'Build falhou. Verifique os logs completos.'
         }
     }
 }
