@@ -41,7 +41,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Install Dependencies') {
             steps {
                 script {
@@ -51,6 +51,8 @@ pipeline {
                         npm install -g npm@latest
                         echo Instalando dependências do projeto...
                         npm install
+                        echo Verificando instalação do Next.js...
+                        npx next --version
                     '''
                 }
             }
