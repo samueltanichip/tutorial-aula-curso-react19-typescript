@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs'  // Define a ferramenta Node.js a ser usada
+        nodejs 'nodejs'
     }
 
     environment {
@@ -14,15 +14,15 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm  // Usando o SCM padrão do Jenkins para checkout
+                checkout scm
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Instalar dependências do projeto
-                    bat 'npm install'
+                    // Usar cmd.exe explicitamente para garantir que o comando seja executado corretamente
+                    bat 'cmd /c npm install'
                 }
             }
         }
@@ -30,8 +30,7 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
-                    // Rodar o comando de build do Next.js
-                    bat 'npm run build'
+                    bat 'cmd /c npm run build'
                 }
             }
         }
@@ -39,9 +38,8 @@ pipeline {
 
     post {
         always {
-            // Arquivar artefatos da build
             archiveArtifacts artifacts: '**/.next/**/*', allowEmptyArchive: true
-            cleanWs()  // Limpar workspace
+            cleanWs()
         }
         failure {
             echo 'Build falhou. Verifique os logs completos.'
