@@ -6,7 +6,6 @@ pipeline {
     }
 
     environment {
-        // Configuração robusta do PATH para Windows incluindo System32
         PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.APPDATA}\\npm;${env.PATH}"
         NODE_ENV = 'production'
         CI = 'true'
@@ -31,7 +30,6 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Verifica explicitamente o cmd.exe primeiro
                     bat '''
                         @echo off
                         echo Verificando ambiente Windows...
@@ -66,15 +64,10 @@ pipeline {
                         
                         echo Verificando instalação do Next.js...
                         npx next --version || echo "Next.js não está disponível"
-                        
-                        echo Listando pacotes instalados...
-                        npm list --depth=0
                     '''
                 }
             }
         }
-
-        
 
         stage('Build Application') {
             steps {
@@ -92,7 +85,18 @@ pipeline {
                             exit 1
                         )
                     '''
-                    '''
                 }
             }
         }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: '**/.next/**/*', allowEmptyArchive: true
+            cleanWs()
+        }
+        failure {
+            echo 'Build falhou. Verifique os logs completos.'
+        }
+    }
+}
