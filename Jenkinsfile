@@ -49,39 +49,50 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Instalação robusta com verificação de erros
                     bat '''
                         @echo off
-                        echo Verificando conexão com npm...
-                        npm ping
-                        echo Atualizando npm...
-                        npm install -g npm@latest
-                        echo Instalando dependências...
-                        npm install
-                        echo Verificando instalações...
+                        echo Verificando versões...
+                        node -v
+                        npm -v
+                        
+                        echo Limpando cache npm...
+                        npm cache clean --force
+                        
+                        echo Instalando Next.js explicitamente...
+                        npm install next@latest react react-dom --save-exact
+                        
+                        echo Instalando todas as dependências...
+                        npm install --no-audit --legacy-peer-deps
+                        
+                        echo Verificando instalação do Next.js...
+                        npx next --version || echo "Next.js não está disponível"
+                        
+                        echo Listando pacotes instalados...
                         npm list --depth=0
                     '''
                 }
             }
         }
 
+        
+
         stage('Build Application') {
             steps {
                 script {
-                    bat 'npm run build'
+                    bat '''
+                        @echo off
+                        echo Executando build com npx...
+                        npx next build
+                        
+                        echo Verificando saída do build...
+                        if exist .next (
+                            echo Build gerado com sucesso
+                        ) else (
+                            echo Falha no build - pasta .next não encontrada
+                            exit 1
+                        )
+                    '''
+                    '''
                 }
             }
         }
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: '**/.next/**/*', allowEmptyArchive: true
-            cleanWs()
-        }
-        failure {
-            echo 'Build falhou. Verifique os logs completos.'
-            // Adicione notificações adicionais se necessário
-        }
-    }
-}
