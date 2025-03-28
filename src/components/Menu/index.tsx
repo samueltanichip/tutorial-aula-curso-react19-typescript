@@ -1,10 +1,18 @@
+import Link from 'next/link';
+
 const Menu = () => {
-    return(
+    return (
         <nav>
             <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/about">Sobre a Empresa</a></li>
-                <li><a href="/contact">Contato</a></li>
+                <li>
+                    <Link href="/">Home</Link>
+                </li>
+                <li>
+                    <Link href="/about">Sobre a Empresa</Link>
+                </li>
+                <li>
+                    <Link href="/contact">Contato</Link>
+                </li>
             </ul>
         </nav>
     )
