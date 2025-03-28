@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs'
+        nodejs 'nodejs'  // Define a ferramenta Node.js a ser usada
     }
 
     environment {
-        PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.APPDATA}\\npm;${env.PATH}"
         NODE_ENV = 'production'
         CI = 'true'
         npm_config_cache = "${env.WORKSPACE}\\.npm"
@@ -15,45 +14,15 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    extensions: [[$class: 'CleanBeforeCheckout']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
-                        credentialsId: 'ssh_key'
-                    ]]
-                ])
+                checkout scm  // Usando o SCM padrão do Jenkins para checkout
             }
         }
 
-        stage('Setup Environment') {
-            steps {
-                script {
-                    bat '''
-                        @echo off
-                        echo Configurando ambiente Node.js...
-                        where node
-                        where npm
-                        where npx
-                        npm config set cache "${WORKSPACE}\\.npm" --global
-                    '''
-                }
-            }
-        }
-        
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat '''
-                        @echo off
-                        echo Atualizando npm...
-                        npm install -g npm@latest
-                        echo Instalando dependências do projeto...
-                        npm install
-                        echo Verificando instalação do Next.js...
-                        npx next --version
-                    '''
+                    // Instalar dependências do projeto
+                    bat 'npm install'
                 }
             }
         }
@@ -61,6 +30,7 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
+                    // Rodar o comando de build do Next.js
                     bat 'npm run build'
                 }
             }
@@ -69,8 +39,9 @@ pipeline {
 
     post {
         always {
+            // Arquivar artefatos da build
             archiveArtifacts artifacts: '**/.next/**/*', allowEmptyArchive: true
-            cleanWs()
+            cleanWs()  // Limpar workspace
         }
         failure {
             echo 'Build falhou. Verifique os logs completos.'
