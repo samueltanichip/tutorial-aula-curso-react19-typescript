@@ -56,19 +56,23 @@ pipeline {
                         echo Limpando cache npm...
                         npm cache clean --force
                         
-                        echo Instalando Next.js explicitamente...
+                        echo Instalando dependências essenciais...
                         npm install next@latest react react-dom --save-exact
+                        npm install tailwindcss postcss autoprefixer --save-dev
                         
                         echo Instalando todas as dependências...
                         npm install --no-audit --legacy-peer-deps
                         
-                        echo Verificando instalação do Next.js...
-                        npx next --version || echo "Next.js não está disponível"
+                        echo Configurando TailwindCSS...
+                        npx tailwindcss init -p
+                        
+                        echo Verificando instalações...
+                        npm list --depth=0
                     '''
                 }
             }
         }
-
+        
         stage('Build Application') {
             steps {
                 script {
