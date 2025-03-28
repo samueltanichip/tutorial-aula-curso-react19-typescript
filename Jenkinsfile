@@ -6,11 +6,9 @@ pipeline {
     }
 
     environment {
-        // Configuração robusta do PATH para Windows
         PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.APPDATA}\\npm;${env.PATH}"
         NODE_ENV = 'production'
         CI = 'true'
-        // Configura cache do npm no workspace
         npm_config_cache = "${env.WORKSPACE}\\.npm"
     }
 
@@ -32,10 +30,9 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Verifica e configura o ambiente
                     bat '''
                         @echo off
-                        echo Configurando ambiente...
+                        echo Configurando ambiente Node.js...
                         where node
                         where npm
                         where npx
@@ -48,32 +45,12 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Instalação robusta de dependências
                     bat '''
                         @echo off
-                        echo Instalando dependências globais...
+                        echo Atualizando npm...
                         npm install -g npm@latest
                         echo Instalando dependências do projeto...
-                        npm install --save-dev tailwindcss postcss autoprefixer
                         npm install
-                    '''
-                }
-            }
-        }
-
-        stage('Configure Tailwind') {
-            steps {
-                script {
-                    // Criação segura dos arquivos de configuração
-                    bat '''
-                        @echo off
-                        echo Verificando configurações do Tailwind...
-                        if not exist postcss.config.js (
-                            echo Criando arquivos de configuração...
-                            .\\node_modules\\.bin\\tailwindcss init -p
-                        ) else (
-                            echo "Arquivos de configuração já existem"
-                        )
                     '''
                 }
             }
@@ -95,7 +72,6 @@ pipeline {
         }
         failure {
             echo 'Build falhou. Verifique os logs completos.'
-            // Opcional: Enviar notificação por e-mail/Slack
         }
     }
 }
