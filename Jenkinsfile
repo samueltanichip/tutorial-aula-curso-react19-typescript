@@ -6,9 +6,12 @@ pipeline {
     }
 
     environment {
+        // Configuração robusta do PATH para Windows
         PATH = "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;${tool 'nodejs'}\\bin;${env.APPDATA}\\npm;${env.PATH}"
         NODE_ENV = 'production'
         CI = 'true'
+        // Configura cache do npm no workspace
+        npm_config_cache = "${env.WORKSPACE}\\.npm"
     }
 
     stages {
@@ -20,7 +23,7 @@ pipeline {
                     extensions: [[$class: 'CleanBeforeCheckout']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
-                        credentialsId: 'ssh_key' // Use o ID correto das suas credenciais
+                        credentialsId: 'ssh_key'
                     ]]
                 ])
             }
@@ -29,8 +32,15 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    bat 'node --version'
-                    bat 'npm --version'
+                    // Verifica e configura o ambiente
+                    bat '''
+                        @echo off
+                        echo Configurando ambiente...
+                        where node
+                        where npm
+                        where npx
+                        npm config set cache "${WORKSPACE}\\.npm" --global
+                    '''
                 }
             }
         }
@@ -38,9 +48,15 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'npm install -g npm@latest'
-                    bat 'npm install --save-dev tailwindcss postcss autoprefixer'
-                    bat 'npm ci --prefer-offline'
+                    // Instalação robusta de dependências
+                    bat '''
+                        @echo off
+                        echo Instalando dependências globais...
+                        npm install -g npm@latest
+                        echo Instalando dependências do projeto...
+                        npm install --save-dev tailwindcss postcss autoprefixer
+                        npm install
+                    '''
                 }
             }
         }
@@ -48,11 +64,15 @@ pipeline {
         stage('Configure Tailwind') {
             steps {
                 script {
+                    // Criação segura dos arquivos de configuração
                     bat '''
+                        @echo off
+                        echo Verificando configurações do Tailwind...
                         if not exist postcss.config.js (
-                            npx tailwindcss init -p
+                            echo Criando arquivos de configuração...
+                            .\\node_modules\\.bin\\tailwindcss init -p
                         ) else (
-                            echo "Config files already exist"
+                            echo "Arquivos de configuração já existem"
                         )
                     '''
                 }
@@ -66,25 +86,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
-            steps {
-                script {
-                    bat '''
-                        @echo off
-                        echo Parando processos existentes na porta %APP_PORT%...
-                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000') do (
-                            taskkill /F /PID %%a
-                        )
-                        echo Iniciando aplicação...
-                        start "NextApp" /B npm run start
-                    '''
-                }
-            }
-        }
     }
 
     post {
@@ -93,7 +94,8 @@ pipeline {
             cleanWs()
         }
         failure {
-            echo 'Build falhou. Verifique os logs.'
+            echo 'Build falhou. Verifique os logs completos.'
+            // Opcional: Enviar notificação por e-mail/Slack
         }
     }
 }
