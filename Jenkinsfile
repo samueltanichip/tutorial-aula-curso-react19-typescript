@@ -24,7 +24,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'npm ci --no-audit'  // Ignora vulnerabilidades durante o build
+                    bat 'yarn install --frozen-lockfile'  // Usando Yarn para instalar as dependências
                 }
             }
         }
@@ -32,7 +32,7 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
-                    bat 'npx next build'
+                    bat 'yarn build'  // Usando Yarn para build
                 }
             }
         }
@@ -44,7 +44,7 @@ pipeline {
                         @echo off
                         set PORT=${APP_PORT}
                         echo "Iniciando aplicação Next.js na porta %PORT%"
-                        npx next start --port %PORT%
+                        yarn start --port %PORT%  // Usando Yarn para iniciar a aplicação
                     """
                 }
             }
