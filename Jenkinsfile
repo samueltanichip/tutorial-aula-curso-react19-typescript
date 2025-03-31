@@ -16,17 +16,15 @@ pipeline {
             steps {
                 checkout([$class: 'GitSCM', 
                          branches: [[name: '*/main']],
-                         userRemoteConfigs: [[url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git']]])
+                         userRemoteConfigs: [[url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
+                         credentialsId: 'ssh_key']]])
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'where cmd'
-                    bat 'where node'
-                    bat 'where npm'
-                    bat 'npm ci'
+                    bat 'npm ci --no-audit'  // Ignora vulnerabilidades durante o build
                 }
             }
         }
@@ -35,7 +33,6 @@ pipeline {
             steps {
                 script {
                     bat 'npx next build'
-                    // Removido o next analyze pois não há configuração para ele
                 }
             }
         }
@@ -46,8 +43,8 @@ pipeline {
                     bat """
                         @echo off
                         set PORT=${APP_PORT}
-                        echo Iniciando aplicação na porta %PORT%
-                        npm run start
+                        echo "Iniciando aplicação Next.js na porta %PORT%"
+                        npx next start --port %PORT%
                     """
                 }
             }
@@ -60,9 +57,20 @@ pipeline {
             archiveArtifacts artifacts: '.next/**/*', allowEmptyArchive: true
         }
         failure {
-            echo 'Build falhou - verifique os logs'
-            // Adicionado tratamento mais robusto para processos node
-            bat 'tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL && taskkill /F /IM node.exe /T || echo Nenhum processo node encontrado'
+            echo 'Build falhou - verifique os logs completos'
+            script {
+                // Comando mais robusto para verificar e matar processos Node
+                bat '''
+                    @echo off
+                    tasklist /FI "IMAGENAME eq node.exe" | find /I "node.exe" > nul
+                    if %errorlevel% equ 0 (
+                        taskkill /F /IM node.exe /T
+                        echo Processos Node.js finalizados
+                    ) else (
+                        echo Nenhum processo Node.js encontrado
+                    )
+                '''
+            }
         }
     }
 }
