@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        PATH = "C:\\Windows\\System32;${env.PATH}"
+        PATH = "C:\\Windows\\System32;${env.PATH};C:\\Program Files\\nodejs\\;${env.APPDATA}\\npm"
         APP_PORT = 3000
         NODE_ENV = 'production'
     }
@@ -21,10 +21,27 @@ pipeline {
             }
         }
 
+        stage('Setup Yarn') {
+            steps {
+                script {
+                    // Instala o Yarn globalmente se não estiver disponível
+                    bat '''
+                        @echo off
+                        yarn --version > nul 2>&1
+                        if %errorlevel% neq 0 (
+                            echo Instalando Yarn globalmente...
+                            npm install -g yarn
+                        )
+                        yarn --version
+                    '''
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'yarn install --frozen-lockfile'  // Usando Yarn para instalar as dependências
+                    bat 'yarn install --frozen-lockfile'
                 }
             }
         }
@@ -32,7 +49,7 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
-                    bat 'yarn build'  // Usando Yarn para build
+                    bat 'yarn build'
                 }
             }
         }
@@ -44,7 +61,7 @@ pipeline {
                         @echo off
                         set PORT=${APP_PORT}
                         echo "Iniciando aplicação Next.js na porta %PORT%"
-                        yarn start --port %PORT%  // Usando Yarn para iniciar a aplicação
+                        yarn start --port %PORT%
                     """
                 }
             }
@@ -59,7 +76,6 @@ pipeline {
         failure {
             echo 'Build falhou - verifique os logs completos'
             script {
-                // Comando mais robusto para verificar e matar processos Node
                 bat '''
                     @echo off
                     tasklist /FI "IMAGENAME eq node.exe" | find /I "node.exe" > nul
