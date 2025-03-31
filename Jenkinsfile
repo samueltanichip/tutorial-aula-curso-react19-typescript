@@ -21,16 +21,25 @@ pipeline {
             }
         }
 
-        stage('Setup Yarn') {
+        stage('Setup Environment') {
             steps {
                 script {
+                    // Remove package-lock.json se existir (para evitar conflitos com Yarn)
+                    bat '''
+                        @echo off
+                        if exist package-lock.json (
+                            echo Removendo package-lock.json para evitar conflitos com Yarn...
+                            del package-lock.json
+                        )
+                    '''
+                    
                     // Instala o Yarn globalmente se não estiver disponível
                     bat '''
                         @echo off
                         yarn --version > nul 2>&1
                         if %errorlevel% neq 0 (
                             echo Instalando Yarn globalmente...
-                            npm install -g yarn
+                            npm install -g yarn@1.22.22
                         )
                         yarn --version
                     '''
@@ -41,7 +50,8 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    bat 'yarn install --frozen-lockfile'
+                    // Instala dependências com Yarn, ignorando verificações problemáticas
+                    bat 'yarn install --frozen-lockfile --ignore-scripts'
                 }
             }
         }
