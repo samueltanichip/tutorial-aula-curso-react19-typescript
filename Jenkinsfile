@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs' // Nome exato da instalação do Node no Jenkins
+        nodejs 'nodejs'
     }
 
     environment {
-        // Garante que o sistema encontrará os comandos básicos
         PATH = "C:\\Windows\\System32;${env.PATH}"
         APP_PORT = 3000
+        NODE_ENV = 'production'
     }
 
     stages {
@@ -23,12 +23,9 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Verifica se os comandos básicos funcionam
                     bat 'where cmd'
                     bat 'where node'
                     bat 'where npm'
-                    
-                    // Instala dependências com clean install
                     bat 'npm ci'
                 }
             }
@@ -37,11 +34,8 @@ pipeline {
         stage('Build Application') {
             steps {
                 script {
-                    // Executa o build do Next.js com produção
                     bat 'npx next build'
-                    
-                    // Opcional: gera análise do bundle
-                    bat 'npx next analyze'
+                    // Removido o next analyze pois não há configuração para ele
                 }
             }
         }
@@ -49,13 +43,11 @@ pipeline {
         stage('Start Application') {
             steps {
                 script {
-                    // Mata processos existentes na porta definida
                     bat """
                         @echo off
-                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr :${APP_PORT}') do (
-                            taskkill /f /pid %%a
-                        )
-                        start "NextJS_Server" cmd /c "npm run start"
+                        set PORT=${APP_PORT}
+                        echo Iniciando aplicação na porta %PORT%
+                        npm run start
                     """
                 }
             }
@@ -69,8 +61,8 @@ pipeline {
         }
         failure {
             echo 'Build falhou - verifique os logs'
-            // Limpeza de processos em caso de falha
-            bat 'taskkill /F /IM node.exe /T'
+            // Adicionado tratamento mais robusto para processos node
+            bat 'tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL && taskkill /F /IM node.exe /T || echo Nenhum processo node encontrado'
         }
     }
 }
