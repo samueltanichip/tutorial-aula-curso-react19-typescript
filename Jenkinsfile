@@ -10,7 +10,7 @@ pipeline {
     CI = "false"
     AWS_REGION = 'us-east-1'
     S3_BUCKET = 'jenkinstest-x015r2'
-		REACT_APP_CLIENT = 'Ionics'
+    REACT_APP_CLIENT = 'Ionics'
   }
 
   stages {
@@ -22,8 +22,16 @@ pipeline {
 
     stage('Load environment variables') {
       steps {
-        withCredentials([file(credentialsId: 'mainChiptronicENV', variable: 'ENV_SECRET')]) {
-          sh 'cp "$ENV_SECRET" .env'
+        script {
+          if (isUnix()) {
+            withCredentials([file(credentialsId: 'mainChiptronicENV', variable: 'ENV_SECRET')]) {
+              sh 'cp "$ENV_SECRET" .env'
+            }
+          } else {
+            withCredentials([file(credentialsId: 'mainChiptronicENV', variable: 'ENV_SECRET')]) {
+              bat 'copy /Y "%ENV_SECRET%" .env'
+            }
+          }
         }
       }
     }
@@ -31,14 +39,26 @@ pipeline {
     stage('Install dependencies') {
       steps {
         echo 'Installing dependencies'
-        sh 'yarn install --legacy-peer-deps --ignore-engines'
+        script {
+          if (isUnix()) {
+            sh 'yarn install --legacy-peer-deps --ignore-engines'
+          } else {
+            bat 'yarn install --legacy-peer-deps --ignore-engines'
+          }
+        }
       }
     }
 
     stage('Build') {
       steps {
         echo "Building branch ${env.BRANCH_NAME}"
-        sh 'yarn run build --openssl-legacy-provider'
+        script {
+          if (isUnix()) {
+            sh 'yarn run build --openssl-legacy-provider'
+          } else {
+            bat 'set NODE_OPTIONS=--openssl-legacy-provider && yarn run build'
+          }
+        }
       }
     }
 
@@ -50,7 +70,13 @@ pipeline {
     //       accessKeyVariable: 'AWS_ACCESS_KEY_ID',
     //       secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
     //     ]]) {
-    //       sh 'aws s3 sync build/ s3://$S3_BUCKET/ --delete --region $AWS_REGION'
+    //       script {
+    //         if (isUnix()) {
+    //           sh 'aws s3 sync build/ s3://$S3_BUCKET/ --delete --region $AWS_REGION'
+    //         } else {
+    //           bat 'aws s3 sync build/ s3://%S3_BUCKET%/ --delete --region %AWS_REGION%'
+    //         }
+    //       }
     //     }
     //   }
     // }
@@ -58,11 +84,23 @@ pipeline {
 
   post {
     always {
-      sh 'rm -f .env'
+      script {
+        if (isUnix()) {
+          sh 'rm -f .env'
+        } else {
+          bat 'del /F .env'
+        }
+      }
     }
     success {
       echo "✅ Deployment successful."
-      sh 'rm -rf node_modules build'
+      script {
+        if (isUnix()) {
+          sh 'rm -rf node_modules build'
+        } else {
+          bat 'rd /s /q node_modules build'
+        }
+      }
     }
     failure {
       echo "❌ Build failed! Check logs at: ${BUILD_URL}."
