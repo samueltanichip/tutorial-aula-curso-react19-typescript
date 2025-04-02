@@ -1,27 +1,36 @@
 @Library('jenkins-shared-library@main') _
 
 pipeline {
-    agent any
+    agent {
+        label 'master' // Ou o label correto do seu agente Windows
+    }
+    
+    environment {
+        PATH = "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;${env.PATH}"
+    }
+
     stages {
         stage('Setup') {
             steps {
-                bat 'node --version && npm --version'
+                bat '''
+                    echo %PATH%
+                    where cmd
+                    node --version
+                    npm --version
+                '''
             }
         }
+        
         stage('Build') {
             steps {
-                nodeBuild()
+                bat 'npm install'
+                bat 'npm run build'
             }
         }
+        
         stage('Test') {
             steps {
-                nodeTest()
-            }
-        }
-        stage('Deploy') {
-            when { branch 'main' }
-            steps {
-                nodeDeploy('prod')
+                bat 'npm test'
             }
         }
     }
