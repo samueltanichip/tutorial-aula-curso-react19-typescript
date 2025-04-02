@@ -9,25 +9,40 @@ pipeline {
     PATH = "C:\\Windows\\System32;${env.PATH}"
     NODE_OPTIONS = "--max-old-space-size=5120"
     CI = "false"
-    AWS_REGION = 'us-east-1'
-    S3_BUCKET = 'jenkinstest-x015r2'
-    REACT_APP_CLIENT = 'Ionics'
   }
 
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/main']],
+          extensions: [[
+            $class: 'CleanBeforeCheckout'
+          ]],
+          userRemoteConfigs: [[
+            credentialsId: 'ssh_key',
+            url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git'
+          ]]
+        ])
       }
     }
 
-    stage('Verify Structure') {
+    stage('Create Missing Files') {
       steps {
         script {
-          if (isUnix()) {
-            sh 'ls -la && ls -la public/ || true'
-          } else {
-            bat 'dir && dir public || echo "Public folder not found"'
+          if (!fileExists('public/index.html')) {
+            if (isUnix()) {
+              sh '''
+                mkdir -p public
+                echo "<!DOCTYPE html><html><head><title>React App</title></head><body><div id='root'></div></body></html>" > public/index.html
+              '''
+            } else {
+              bat '''
+                if not exist public mkdir public
+                echo ^<!DOCTYPE html^>^<html^>^<head^>^<title^>React App^</title^>^</head^>^<body^>^<div id='root'^>^</div^>^</body^>^</html^> > public\\index.html
+              '''
+            }
           }
         }
       }
@@ -48,22 +63,10 @@ pipeline {
     stage('Build') {
       steps {
         script {
-          // Verifica se é Next.js (pela presença de next.config.js/ts)
-          def isNextJs = fileExists('next.config.js') || fileExists('next.config.ts')
-          
-          if (isNextJs) {
-            if (isUnix()) {
-              sh 'yarn run build'
-            } else {
-              bat 'yarn run build'
-            }
+          if (isUnix()) {
+            sh 'yarn run build'
           } else {
-            // Se não for Next.js, assume Create React App
-            if (isUnix()) {
-              sh 'yarn run build --openssl-legacy-provider'
-            } else {
-              bat 'set NODE_OPTIONS=--openssl-legacy-provider && yarn run build'
-            }
+            bat 'yarn run build'
           }
         }
       }
@@ -71,11 +74,22 @@ pipeline {
   }
 
   post {
-    failure {
-      echo "❌ Build failed! Check logs at: ${env.BUILD_URL}"
+    always {
+      script {
+        // Limpeza opcional após o build
+        if (isUnix()) {
+          sh 'rm -f .env || true'
+        } else {
+          bat 'del /F .env 2> nul || exit 0'
+        }
+      }
     }
     success {
       echo "✅ Build successful!"
+      archiveArtifacts artifacts: 'build/**/*', fingerprint: true
+    }
+    failure {
+      echo "❌ Build failed! Check logs at: ${env.BUILD_URL}"
     }
   }
 }
