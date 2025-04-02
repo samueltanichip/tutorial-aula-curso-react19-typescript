@@ -1,5 +1,5 @@
 // Método 1 (Recomendado quando configurado corretamente no Jenkins)
-@Library('tutorial-shared-lib@jenkins-shared-library') _
+@Library('pipeline_libraryes@jenkins-shared-library') _
 
 // Método 2 (Alternativo direto no código)
 // library(
