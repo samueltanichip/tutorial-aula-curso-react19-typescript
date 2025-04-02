@@ -1,7 +1,7 @@
 @Library('jenkins-shared-library@main') _
 
 pipeline {
-    agent { label 'windows' }  // Executa em agente Windows
+    agent any
     stages {
         stage('Setup') {
             steps {
