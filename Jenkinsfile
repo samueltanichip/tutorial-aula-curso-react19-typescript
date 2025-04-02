@@ -1,5 +1,5 @@
 // Método 1 (Recomendado quando configurado corretamente no Jenkins)
-@Library('pipeline_libraryes@jenkins-shared-library')_
+@Library('pipeline@jenkins-shared-library')_
 
 pipeline {
     agent any
