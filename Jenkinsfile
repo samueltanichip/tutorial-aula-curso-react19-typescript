@@ -1,4 +1,4 @@
-@Library('jenkins-shared-library@main') _
+@Library('tutorial-shared-lib@jenkins-shared-library') _
 import org.nodeutils.Versioner
 
 pipeline {
