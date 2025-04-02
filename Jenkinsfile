@@ -6,8 +6,7 @@ pipeline {
     environment {
         PATH = "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Program Files\\nodejs;${env.PATH}"
         CI = 'true'
-        // Variável dinâmica para o diretório de build
-        BUILD_OUTPUT_DIR = ''
+        BUILD_OUTPUT_DIR = 'dist' // Define um padrão seguro
     }
 
     stages {
@@ -15,9 +14,15 @@ pipeline {
             steps {
                 script {
                     setupEnvironment()
-                    // Determina automaticamente o diretório de output
-                    BUILD_OUTPUT_DIR = determineBuildOutputDir()
-                    echo "📂 Diretório de build detectado: ${BUILD_OUTPUT_DIR}"
+                    // Verificação simplificada sem readJSON
+                    if (fileExists('vite.config.js') || fileExists('vite.config.ts')) {
+                        env.BUILD_OUTPUT_DIR = 'dist'
+                    } else if (fileExists('next.config.js')) {
+                        env.BUILD_OUTPUT_DIR = 'out'
+                    } else if (fileExists('build/index.html')) {
+                        env.BUILD_OUTPUT_DIR = 'build'
+                    }
+                    echo "📂 Diretório de build definido como: ${env.BUILD_OUTPUT_DIR}"
                 }
             }
         }
@@ -31,22 +36,29 @@ pipeline {
             post {
                 success {
                     script {
-                        if (fileExists("${BUILD_OUTPUT_DIR}/index.html")) {
-                            echo "📦 Arquivando artefatos de ${BUILD_OUTPUT_DIR}/**/*"
-                            archiveArtifacts artifacts: "${BUILD_OUTPUT_DIR}/**/*", fingerprint: true
+                        // Verificação robusta do diretório de build
+                        def buildDir = env.BUILD_OUTPUT_DIR
+                        if (fileExists("${buildDir}/index.html")) {
+                            echo "📦 Arquivando artefatos de ${buildDir}/**/*"
+                            archiveArtifacts artifacts: "${buildDir}/**/*", fingerprint: true
                         } else {
-                            echo "⚠️ Aviso: index.html não encontrado em ${BUILD_OUTPUT_DIR}/"
-                            echo "📌 Listando conteúdo do diretório:"
-                            bat "dir ${BUILD_OUTPUT_DIR} || echo Diretório não encontrado"
-                            
-                            // Fallback: cria estrutura mínima se o build falhar silenciosamente
-                            if (!fileExists("${BUILD_OUTPUT_DIR}/index.html")) {
-                                echo "🛠️ Criando estrutura mínima em ${BUILD_OUTPUT_DIR}/"
+                            echo "⚠️ Aviso: index.html não encontrado em ${buildDir}/"
+                            // Fallback: tenta encontrar em diretórios comuns
+                            def found = false
+                            ['dist', 'build', 'out'].each { dir ->
+                                if (!found && fileExists("${dir}/index.html")) {
+                                    echo "🔍 Encontrado index.html em ${dir}/ (fallback)"
+                                    archiveArtifacts artifacts: "${dir}/**/*", fingerprint: true
+                                    found = true
+                                }
+                            }
+                            if (!found) {
+                                echo "🛠️ Criando estrutura mínima em ${buildDir}/"
                                 bat """
-                                    mkdir ${BUILD_OUTPUT_DIR} || echo "Diretório já existe"
-                                    echo "<!DOCTYPE html><html><body>Build placeholder</body></html>" > ${BUILD_OUTPUT_DIR}/index.html
+                                    mkdir ${buildDir} || echo "Diretório já existe"
+                                    echo "<!DOCTYPE html><html><body>Build placeholder</body></html>" > ${buildDir}/index.html
                                 """
-                                archiveArtifacts artifacts: "${BUILD_OUTPUT_DIR}/**/*", fingerprint: true
+                                archiveArtifacts artifacts: "${buildDir}/**/*", fingerprint: true
                             }
                         }
                     }
@@ -63,10 +75,12 @@ pipeline {
             post {
                 always {
                     script {
-                        if (fileExists('junit.xml')) {
-                            junit 'junit.xml'
+                        // Verifica múltiplos possíveis locais de relatório de testes
+                        def testReport = findTestReports()
+                        if (testReport) {
+                            junit testReport
                         } else {
-                            echo 'ℹ️ Nenhum relatório de testes junit.xml encontrado'
+                            echo 'ℹ️ Nenhum relatório de testes encontrado'
                             // Cria relatório vazio para evitar falha no pipeline
                             writeFile file: 'junit.xml', text: '<testsuite tests="0"></testsuite>'
                             junit allowEmptyResults: true, testResults: 'junit.xml'
@@ -97,43 +111,25 @@ pipeline {
         failure {
             script {
                 echo "❌ Build falhou! Consulte: ${env.BUILD_URL}"
-            }
-        }
-        unstable {
-            script {
-                echo "⚠️ Build marcado como instável. Consulte: ${env.BUILD_URL}"
+                // Adicione notificações adicionais aqui se necessário
             }
         }
     }
 }
 
-// Função para determinar o diretório de output do build
-def determineBuildOutputDir() {
-    def outputDir = 'dist' // Padrão para a maioria dos projetos React/Vite
+// Função simplificada para encontrar relatórios de teste
+def findTestReports() {
+    def reports = [
+        'junit.xml',
+        'test-results.xml',
+        'coverage/junit.xml',
+        'reports/junit.xml'
+    ]
     
-    // Verifica se existe um vite.config.js ou vite.config.ts
-    if (fileExists('vite.config.js') || fileExists('vite.config.ts')) {
-        return 'dist'
-    }
-    // Verifica se existe um next.config.js
-    else if (fileExists('next.config.js')) {
-        return 'out'
-    }
-    // Verifica se o package.json define um diretório customizado
-    else if (fileExists('package.json')) {
-        def packageJson = readJSON file: 'package.json'
-        if (packageJson?.buildOptions?.outputDir) {
-            return packageJson.buildOptions.outputDir
+    for (report in reports) {
+        if (fileExists(report)) {
+            return report
         }
     }
-    
-    // Fallback para diretórios comuns
-    def commonDirs = ['build', 'dist', 'out', 'public']
-    for (dir in commonDirs) {
-        if (fileExists(dir)) {
-            return dir
-        }
-    }
-    
-    return outputDir // Retorna o padrão se não encontrar
+    return null
 }
