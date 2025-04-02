@@ -6,6 +6,7 @@ pipeline {
   }
 
   environment {
+    PATH = "C:\\Windows\\System32;${env.PATH}"
     NODE_OPTIONS = "--max-old-space-size=5120"
     CI = "false"
     AWS_REGION = 'us-east-1'
@@ -16,23 +17,15 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
-      }
-    }
-
-    stage('Load environment variables') {
-      steps {
-        script {
-          if (isUnix()) {
-            withCredentials([file(credentialsId: 'mainChiptronicENV', variable: 'ENV_SECRET')]) {
-              sh 'cp "$ENV_SECRET" .env'
-            }
-          } else {
-            withCredentials([file(credentialsId: 'mainChiptronicENV', variable: 'ENV_SECRET')]) {
-              bat 'copy /Y "%ENV_SECRET%" .env'
-            }
-          }
-        }
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/main']],
+          extensions: [],
+          userRemoteConfigs: [[
+            credentialsId: 'ssh_key',
+            url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git'
+          ]]
+        ])
       }
     }
 
@@ -43,7 +36,11 @@ pipeline {
           if (isUnix()) {
             sh 'yarn install --legacy-peer-deps --ignore-engines'
           } else {
-            bat 'yarn install --legacy-peer-deps --ignore-engines'
+            bat """
+              echo "PATH: %PATH%"
+              where yarn
+              yarn install --legacy-peer-deps --ignore-engines
+            """
           }
         }
       }
@@ -56,54 +53,63 @@ pipeline {
           if (isUnix()) {
             sh 'yarn run build --openssl-legacy-provider'
           } else {
-            bat 'set NODE_OPTIONS=--openssl-legacy-provider && yarn run build'
+            bat """
+              set NODE_OPTIONS=--openssl-legacy-provider
+              yarn run build
+            """
           }
         }
       }
     }
 
-    // stage('Deploy') {
-    //   steps {
-    //     withCredentials([[
-    //       $class: 'AmazonWebServicesCredentialsBinding',
-    //       credentialsId: 'JekinsCredentialAWS',
-    //       accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-    //       secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-    //     ]]) {
-    //       script {
-    //         if (isUnix()) {
-    //           sh 'aws s3 sync build/ s3://$S3_BUCKET/ --delete --region $AWS_REGION'
-    //         } else {
-    //           bat 'aws s3 sync build/ s3://%S3_BUCKET%/ --delete --region %AWS_REGION%'
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
+    stage('Deploy') {
+      when {
+        expression { env.BRANCH_NAME == 'main' }
+      }
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'JekinsCredentialAWS',
+          accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+          secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+        ]]) {
+          script {
+            if (isUnix()) {
+              sh 'aws s3 sync build/ s3://$S3_BUCKET/ --delete --region $AWS_REGION'
+            } else {
+              bat """
+                where aws
+                aws s3 sync build/ s3://%S3_BUCKET%/ --delete --region %AWS_REGION%
+              """
+            }
+          }
+        }
+      }
+    }
   }
 
   post {
     always {
       script {
         if (isUnix()) {
-          sh 'rm -f .env'
+          sh 'rm -f .env || true'
         } else {
-          bat 'del /F .env'
+          bat 'del /F .env 2> nul || exit 0'
         }
       }
     }
     success {
-      echo "✅ Deployment successful."
+      echo "✅ Build successful!"
       script {
         if (isUnix()) {
-          sh 'rm -rf node_modules build'
+          sh 'rm -rf node_modules build || true'
         } else {
-          bat 'rd /s /q node_modules build'
+          bat 'rd /s /q node_modules build 2> nul || exit 0'
         }
       }
     }
     failure {
-      echo "❌ Build failed! Check logs at: ${BUILD_URL}."
+      echo "❌ Build failed! Check logs at: ${env.BUILD_URL}"
     }
   }
 }
