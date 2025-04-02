@@ -1,9 +1,7 @@
 @Library('jenkins-shared-library@main') _
 
 pipeline {
-    agent {
-        label 'main' // Ou o label correto do seu agente Windows
-    }
+    agent any // Agora pode rodar em qualquer agente disponível
     
     environment {
         PATH = "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;${env.PATH}"
@@ -35,3 +33,4 @@ pipeline {
         }
     }
 }
+
