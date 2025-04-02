@@ -20,12 +20,34 @@ pipeline {
         checkout([
           $class: 'GitSCM',
           branches: [[name: '*/main']],
-          extensions: [],
+          extensions: [[
+            $class: 'CleanBeforeCheckout'
+          ]],
           userRemoteConfigs: [[
             credentialsId: 'ssh_key',
             url: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git'
           ]]
         ])
+      }
+    }
+
+    stage('Verify Structure') {
+      steps {
+        script {
+          if (isUnix()) {
+            sh '''
+              echo "Verifying project structure..."
+              ls -la
+              ls -la public/
+            '''
+          } else {
+            bat '''
+              echo Verifying project structure...
+              dir
+              dir public
+            '''
+          }
+        }
       }
     }
 
@@ -36,11 +58,11 @@ pipeline {
           if (isUnix()) {
             sh 'yarn install --legacy-peer-deps --ignore-engines'
           } else {
-            bat """
+            bat '''
               echo "PATH: %PATH%"
               where yarn
               yarn install --legacy-peer-deps --ignore-engines
-            """
+            '''
           }
         }
       }
@@ -53,10 +75,10 @@ pipeline {
           if (isUnix()) {
             sh 'yarn run build --openssl-legacy-provider'
           } else {
-            bat """
+            bat '''
               set NODE_OPTIONS=--openssl-legacy-provider
               yarn run build
-            """
+            '''
           }
         }
       }
@@ -64,7 +86,10 @@ pipeline {
 
     stage('Deploy') {
       when {
-        expression { env.BRANCH_NAME == 'main' }
+        expression { 
+          env.BRANCH_NAME == 'main' && 
+          fileExists('build/index.html') 
+        }
       }
       steps {
         withCredentials([[
@@ -77,10 +102,10 @@ pipeline {
             if (isUnix()) {
               sh 'aws s3 sync build/ s3://$S3_BUCKET/ --delete --region $AWS_REGION'
             } else {
-              bat """
+              bat '''
                 where aws
                 aws s3 sync build/ s3://%S3_BUCKET%/ --delete --region %AWS_REGION%
-              """
+              '''
             }
           }
         }
@@ -100,13 +125,7 @@ pipeline {
     }
     success {
       echo "✅ Build successful!"
-      script {
-        if (isUnix()) {
-          sh 'rm -rf node_modules build || true'
-        } else {
-          bat 'rd /s /q node_modules build 2> nul || exit 0'
-        }
-      }
+      archiveArtifacts artifacts: 'build/**/*', fingerprint: true
     }
     failure {
       echo "❌ Build failed! Check logs at: ${env.BUILD_URL}"
