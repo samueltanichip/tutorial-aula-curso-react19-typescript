@@ -2,7 +2,7 @@
 
 pipeline {
     agent {
-        label 'master' // Ou o label correto do seu agente Windows
+        label 'main' // Ou o label correto do seu agente Windows
     }
     
     environment {
