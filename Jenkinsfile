@@ -1,34 +1,31 @@
+// Método 1 (Recomendado quando configurado corretamente no Jenkins)
 @Library('tutorial-shared-lib@jenkins-shared-library') _
-import org.nodeutils.Versioner
+
+// Método 2 (Alternativo direto no código)
+// library(
+//     identifier: 'tutorial-shared-lib@jenkins-shared-library',
+//     retriever: modernSCM([
+//         $class: 'GitSCMSource',
+//         remote: 'https://github.com/samueltanichip/tutorial-aula-curso-react19-typescript.git',
+//         credentialsId: 'chave ssh'
+//     ])
+// )
 
 pipeline {
     agent any
-    environment {
-        NODE_VERSION = Versioner.getNodeEngine()
-    }
     stages {
-        stage('Build') {
-            steps {
-                nodeBuild(
-                    nodeVersion: env.NODE_VERSION,
-                    buildCmd: 'npm run build:prod'
-                )
-            }
-        }
-        stage('Test') {
-            steps {
-                nodeTest(
-                    coverageCmd: 'npm run coverage'
-                )
-            }
-        }
-        stage('Deploy') {
-            when { branch 'main' }
+        stage('Debug') {
             steps {
                 script {
-                    echo "Deploying version ${Versioner.getSemVer()}"
-                    nodeDeploy('production')
+                    // Verifique se a library foi carregada
+                    echo "Library path: ${library('tutorial-shared-lib').resourcePath}"
+                    sh "ls -la ${library('tutorial-shared-lib').resourcePath}/vars/"
                 }
+            }
+        }
+        stage('Build') {
+            steps {
+                nodeBuild()
             }
         }
     }
