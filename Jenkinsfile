@@ -9,6 +9,9 @@ pipeline {
     PATH = "C:\\Windows\\System32;${env.PATH}"
     NODE_OPTIONS = "--max-old-space-size=5120"
     CI = "false"
+    AWS_REGION = 'us-east-1'
+    S3_BUCKET = 'jenkinstest-x015r2'
+    REACT_APP_CLIENT = 'Ionics'
   }
 
   stages {
@@ -46,15 +49,16 @@ pipeline {
       steps {
         script {
           // Verifica se é Next.js (pela presença de next.config.js/ts)
-          if (fileExists('next.config.js') || fileExists('next.config.ts') {
+          def isNextJs = fileExists('next.config.js') || fileExists('next.config.ts')
+          
+          if (isNextJs) {
             if (isUnix()) {
               sh 'yarn run build'
             } else {
               bat 'yarn run build'
             }
-          } 
-          // Se não for Next.js, assume Create React App
-          else {
+          } else {
+            // Se não for Next.js, assume Create React App
             if (isUnix()) {
               sh 'yarn run build --openssl-legacy-provider'
             } else {
