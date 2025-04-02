@@ -1,8 +1,9 @@
 @Library('jenkins-shared-library@main') _
+import org.jenkinsci.plugins.workflow.libs.Library
 
 pipeline {
     agent any
-    
+
     environment {
         PATH = "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Program Files\\nodejs;${env.PATH}"
         CI = 'true'
@@ -12,7 +13,8 @@ pipeline {
         stage('Setup') {
             steps {
                 script {
-                    sharedLibrary.setupEnvironment()
+                    // Se há uma função específica na shared library para setup, chame-a aqui
+                    setupEnvironment()
                 }
             }
         }
@@ -61,7 +63,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             echo "Pipeline concluído - Status: ${currentBuild.currentResult}"
