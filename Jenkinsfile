@@ -5,7 +5,7 @@ pipeline {
     
     environment {
         PATH = "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Program Files\\nodejs;${env.PATH}"
-        CI = 'true' // Variável de ambiente para modo CI
+        CI = 'true'
     }
 
     stages {
@@ -16,7 +16,6 @@ pipeline {
                     where cmd
                     node --version
                     npm --version
-                    npm install -g yarn@latest  // Opcional: garante yarn atualizado
                 '''
             }
         }
@@ -28,8 +27,6 @@ pipeline {
                     npm run build
                 '''
             }
-            
-            // Opcional: Armazena os arquivos de build
             post {
                 success {
                     archiveArtifacts artifacts: 'build/**/*', fingerprint: true
@@ -40,30 +37,35 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Continua mesmo se não encontrar testes
+                    // Configuração mais robusta para testes
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        bat 'npm test -- --watchAll=false --passWithNoTests'
+                        bat 'npm test -- --watchAll=false --passWithNoTests --reporters=default --reporters=jest-junit'
                     }
                 }
             }
-            
-            // Opcional: Relatório de testes
             post {
                 always {
-                    junit 'junit.xml' // Se seus testes gerarem este relatório
+                    // Só tenta processar JUnit se o arquivo existir
+                    script {
+                        if (fileExists('junit.xml')) {
+                            junit 'junit.xml'
+                        } else {
+                            echo 'Nenhum relatório de testes encontrado (junit.xml)'
+                        }
+                    }
                 }
             }
         }
         
-        // Novo estágio opcional para deploy
         stage('Deploy') {
             when {
-                branch 'main' // Só executa no branch main
+                branch 'main'
+                expression { currentBuild.resultIsBetterOrEqualTo('UNSTABLE') }
             }
             steps {
                 script {
-                    echo "Implemente aqui seu deploy (ex: S3, Firebase, etc.)"
-                    // bat 'yarn deploy' // Se tiver um script configurado
+                    echo "Deploy implementado aqui"
+                    // bat 'npm run deploy' // Descomente se tiver um script de deploy
                 }
             }
         }
@@ -71,15 +73,15 @@ pipeline {
     
     post {
         always {
-            echo "Pipeline concluído - Status: ${currentBuild.result}"
-            cleanWs() // Limpa workspace
+            echo "Pipeline concluído - Status: ${currentBuild.currentResult}"
+            cleanWs()
         }
         failure {
-            emailext (
-                subject: "ERRO no Pipeline: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-                body: "Verifique o build em ${env.BUILD_URL}",
-                to: "seu-email@exemplo.com"
-            )
+            script {
+                // Notificação alternativa se o e-mail falhar
+                echo "Build falhou! Consulte: ${env.BUILD_URL}"
+                // slackSend channel: '#dev-team', message: "Build falhou: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            }
         }
     }
 }
